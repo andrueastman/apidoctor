@@ -2165,6 +2165,14 @@ namespace ApiDoctor.ConsoleApp
 
                 if (shouldUpdate)
                 {
+                    for (var checkIndex = insertionLine; (checkIndex < lines.Length); checkIndex++)
+                    {
+                        if (lines[checkIndex].Contains("---"))
+                        {
+                            insertionLine = checkIndex - 2;//insert new language just before end of tab area
+                            break;
+                        }
+                    }
                     //save the changes to disk
                     var final = FileSplicer(lines, insertionLine + 1, includeText);
                     File.WriteAllLines(method.SourceFile.FullPath, final);
