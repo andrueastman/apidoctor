@@ -1922,18 +1922,10 @@ namespace ApiDoctor.ConsoleApp
             helper.CleanupChanges();
 
             //check out new branch to create new PR on 
-            var branchPrefix = "snippets-generator/";
             var branchName = helper.GetCurrentBranchName();
-            var snippetsBranchName = branchPrefix + branchName;
             
-            //do not add the prefix if it is already there
-            if (branchName.Contains(branchPrefix))
-            {
-                snippetsBranchName = branchName;
-            }
-
-            helper.CheckoutBranch(snippetsBranchName);
-            FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Checking out new branch: {snippetsBranchName}");
+            helper.CheckoutBranch(branchName);
+            FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Checking out new branch: {branchName}");
 
             Uri snippetApiUri = null;
             try
@@ -2001,22 +1993,22 @@ namespace ApiDoctor.ConsoleApp
             {
                 FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Commiting changes to disk.");
                 var commitMessage = $"Updated docs with snippets injected into docs by API doctor from branch : {branchName}";
-                helper.CommitChanges(commitMessage);
+//                helper.CommitChanges(commitMessage);
 
-                //setup for push and pull request
-                GitHub.RepositoryUrl = helper.GetRepositoryUrl();
-                GitHub.AccessToken = options.GithubToken;
-
-                //push chages upstream
-                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Pushing changes upstream");
-                helper.PushToOrigin( GitHub.AccessToken, GitHub.RepositoryUrl);
-
-                //if target branch is not specified, default to master
-                var targetBranch = options.TargetBranch ?? "master";
-
-                //Create the Pull request
-                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Creating Github Pull Request");
-                await GitHub.CreatePullRequest(snippetsBranchName, targetBranch, $"API Doctor Snippet generation from branch : {branchName}", commitMessage);
+//                //setup for push and pull request
+//                GitHub.RepositoryUrl = helper.GetRepositoryUrl();
+//                GitHub.AccessToken = options.GithubToken;
+//
+//                //push chages upstream
+//                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Pushing changes upstream");
+//                helper.PushToOrigin( GitHub.AccessToken, GitHub.RepositoryUrl);
+//
+//                //if target branch is not specified, default to master
+//                var targetBranch = options.TargetBranch ?? "master";
+//
+//                //Create the Pull request
+//                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Creating Github Pull Request");
+//                await GitHub.CreatePullRequest(snippetsBranchName, targetBranch, $"API Doctor Snippet generation from branch : {branchName}", commitMessage);
 
             }
             else
@@ -2107,7 +2099,7 @@ namespace ApiDoctor.ConsoleApp
             }
 
             var codeSnippetHeader = "---\r\ndescription: \"Automatically generated file. DO NOT MODIFY\"\r\n---\r\n";
-            var codeSnippetBlock = codeSnippetHeader + $"\r\n```{language.ToLower().Replace("#", "sharp")}\r\n\r\n{codeSnippet}\r\n\r\n```";
+            var codeSnippetBlock = codeSnippetHeader + $"\r\n```{language.ToLower().Replace("#", "sharp").Replace("objective-c","objc")}\r\n\r\n{codeSnippet}\r\n\r\n```";
             var tabText = $"# [{language}](#tab/{language.ToLower().Replace("#", "s")})\r\n";
 
             //remove any potential spaces or "." signifying file extensions
