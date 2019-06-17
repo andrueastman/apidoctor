@@ -1946,42 +1946,51 @@ namespace ApiDoctor.ConsoleApp
             }
             var methods = FindTestMethods(options, docset);
 
-            using (var httpClient = new HttpClient())
+            //            using (var httpClient = new HttpClient())
+            //            {
+            //                httpClient.DefaultRequestHeaders.Add("User-Agent", "api-doctor");
+            //                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            //                var languages = options.Language.Split(',');
+            //
+            //                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Generating snippets from Snippets API..");
+            //
+            //                var parser = new HttpParser();
+            //
+            //                foreach (var method in methods)
+            //                {
+            //                    HttpRequest request = null;
+            //                    try
+            //                    {
+            //                        request = parser.ParseHttpRequest(method.Request);
+            //                    }
+            //                    catch (Exception e )
+            //                    {
+            //                        Console.WriteLine(method.Identifier);
+            //                        Console.WriteLine(e.Message);
+            //                        continue;
+            //                    }
+            //
+            //                    //cleanup any issues we might have with the url
+            //                    request = PreProcessUrlForSnippetGeneration(request, method, issues);
+            //
+            //                    foreach (var lang in languages)
+            //                    {
+            //                        var codeSnippet = await GetSnippetFromApiAsync(httpClient, snippetApiUri, request ,issues, lang);
+            //
+            //                        if (!string.IsNullOrEmpty(codeSnippet))
+            //                        {
+            //                            InjectSnippetIntoFile(method, codeSnippet, lang);
+            //                        }
+            //                    }
+            //                }
+            //            }
+
+            var languages = options.Language.Split(',');
+            foreach (var method in methods)
             {
-                httpClient.DefaultRequestHeaders.Add("User-Agent", "api-doctor");
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                var languages = options.Language.Split(',');
-
-                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Generating snippets from Snippets API..");
-
-                var parser = new HttpParser();
-
-                foreach (var method in methods)
+                foreach (var lang in languages)
                 {
-                    HttpRequest request = null;
-                    try
-                    {
-                        request = parser.ParseHttpRequest(method.Request);
-                    }
-                    catch (Exception e )
-                    {
-                        Console.WriteLine(method.Identifier);
-                        Console.WriteLine(e.Message);
-                        continue;
-                    }
-
-                    //cleanup any issues we might have with the url
-                    request = PreProcessUrlForSnippetGeneration(request, method, issues);
-
-                    foreach (var lang in languages)
-                    {
-                        var codeSnippet = await GetSnippetFromApiAsync(httpClient, snippetApiUri, request ,issues, lang);
-
-                        if (!string.IsNullOrEmpty(codeSnippet))
-                        {
-                            InjectSnippetIntoFile(method, codeSnippet, lang);
-                        }
-                    }
+                    InjectSnippetIntoFile(method, "", lang);
                 }
             }
 
@@ -1991,8 +2000,8 @@ namespace ApiDoctor.ConsoleApp
             //check if there is any diff to commit
             if (helper.ChangesPresent())
             {
-                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Commiting changes to disk.");
-                var commitMessage = $"Updated docs with snippets injected into docs by API doctor from branch : {branchName}";
+                FancyConsole.WriteLine(FancyConsole.ConsoleSuccessColor, $"Commiting changes to disk. Removing snippets");
+//                var commitMessage = $"Updated docs with snippets injected into docs by API doctor from branch : {branchName}";
 //                helper.CommitChanges(commitMessage);
 
 //                //setup for push and pull request
@@ -2130,52 +2139,36 @@ namespace ApiDoctor.ConsoleApp
                 }
             }
 
-            if (everInserted == false)
-            {
-
-                includeText = $"#### {sampleCodeTitle}\r\n\r\n{includeText}\r\n\r\n---\r\n\r\n";
-                includeText = includeText + includeSdkLink; 
-                var final = FileSplicer(lines, insertionLine, includeText);
-                File.WriteAllLines(method.SourceFile.FullPath, final);
-                var sdkLinkDirectory = Directory.GetParent(Path.GetDirectoryName(method.SourceFile.FullPath)) + "/includes/";
-                Directory.CreateDirectory(sdkLinkDirectory);
-                File.WriteAllText(sdkLinkDirectory + "/" + includeSdkFileName, includeSdkText);
-            }
-            else
+            if (everInserted == true)
             {
                 //Snippets injections exist. But now check if this specific one has happened  before.
-                var shouldUpdate = true;
+                //var shouldUpdate = true;
 
-                for (var checkIndex = insertionLine; (checkIndex < lines.Length) && (shouldUpdate == true); checkIndex++)
+                for (var checkIndex = insertionLine+1; (checkIndex < lines.Length);)
                 {
-                    if (lines[checkIndex].Contains("---"))//we have reached end of tab section so no need to continue
-                        break;
-
-                    if (lines[checkIndex].Equals(includeLink))//the include exists no need to add it again
-                        shouldUpdate = false;
-                }
-
-                if (shouldUpdate)
-                {
-                    for (var checkIndex = insertionLine; (checkIndex < lines.Length); checkIndex++)
+                    if (lines[checkIndex].Contains("---")) //we have reached end of tab section so no need to continue
                     {
-                        if (lines[checkIndex].Contains("---"))
-                        {
-                            insertionLine = checkIndex - 2;//insert new language just before end of tab area
-                            break;
-                        }
+                        lines = lines.Where(((s, i) => (i != checkIndex))).ToArray();
+                        lines = lines.Where(((s, i) => (i != checkIndex))).ToArray();//removes the documentation links
+                        lines = lines.Where(((s, i) => (i != checkIndex))).ToArray();
+                        break;
                     }
-                    //save the changes to disk
-                    var final = FileSplicer(lines, insertionLine + 1, includeText);
-                    File.WriteAllLines(method.SourceFile.FullPath, final);
+                    lines = lines.Where(((s, i) => (i != checkIndex))).ToArray();
                 }
             }
+
+            string suppressionPattern = $"BookmarkMissing: '[#tab/{language.ToLower().Replace("#", "s")}]({language})'";
+            lines = lines.Where(((s) => (!s.Contains(suppressionPattern)))).ToArray();
+            //save the changes to disk
+            //                var final = FileSplicer(lines, insertionLine + 1, includeText);
+            File.WriteAllLines(method.SourceFile.FullPath, lines);
 
             //sort out where will write the snippet to by creating the directory if it does not exist.
             var directory = Directory.GetParent(Path.GetDirectoryName(method.SourceFile.FullPath)) + "/includes/";
             Directory.CreateDirectory(directory);
-            //write snippet to file
-            File.WriteAllText(directory + "/" + fileName, codeSnippetBlock);
+            //remove file snippet to file
+            File.Delete(directory + "/" + fileName);
+//            File.WriteAllText(directory + "/" + fileName, codeSnippetBlock);
         }
 
         /// <summary>
